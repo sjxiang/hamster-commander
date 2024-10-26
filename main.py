@@ -1,10 +1,10 @@
 import sys
-import toolkit
+from utils import chat_mode
 
 
-def generate_command(content: str):
-    reply = toolkit.foo(content)
-    print(reply)
+def generate_command(input: str) -> str:
+    if input is not None and len(input.strip()) > 0:
+        return chat_mode(input)
 
 
 def main(args=sys.argv[1:]):
@@ -13,8 +13,8 @@ def main(args=sys.argv[1:]):
         raise Exception("参数为空, 请告诉我你想做什么")
     
     content = args[0]    
-    generate_command(content)
-   
+    cmd = generate_command(content)
+    print(cmd)
     
     
 if __name__ == '__main__':
