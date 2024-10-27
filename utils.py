@@ -43,41 +43,83 @@ def save(data, path):
 
 
 def chat_mode(input: str) -> str:
+    """ 对话模式 """
+    
     url = "https://spark-api-open.xf-yun.com/v1/chat/completions"
 
-    messages = [
-        { "role": "system", "content": f"""
-        你是一个将用户的需求转化为 linux 命令的机器人，你将用户发来的需求转化为 linux 命令行下的命令，你只回复命令本身，不回复任何其它内容。
-        """},
-        { "role": "user", "content": input}  # "请在此处输入你的问题!!!"
-    ]
+    msgs = init_messages(input=input)
     
     json_obj = {
         "max_tokens": 4096,
         "top_k": 4,
         "temperature": 0.5,
-        "messages": messages,
+        "messages": msgs,
         "model": "generalv3.5"
     }
     
     payload = json.dumps(json_obj)       
     headers = {
-        "Authorization": "Bearer xx" # 注意此处替换自己的APIPassword
+        "Authorization": "Bearer {}".format(os.getenv('password')) # 注意此处替换自己的APIPassword
     }    
     
     response = requests.request('POST', url, headers=headers, data=payload)
-    json_result = json.loads(response.text)
+    data = json.loads(response.text)
 
-    if 'choices' in json_result:
-        return further_process(json_result)
-    else:
-        return json_result    
+    return extract_content(data)  
 
 
-def further_process(result: dict) -> str:
-    choices = result['choices']
-    first_choices = choices[0]
-    message = first_choices['message']
-    content = message['content']
+def init_messages(input: str):
+    messages = [
+        { "role": "system", "content": f"""
+        你是一个将用户的需求转化为 linux 命令的机器人，你将用户发来的需求转化为 linux 命令行下的命令，你只回复命令本身，不回复任何其它内容。
+        示例1：
+        用户：打印日期
+        系统：date
+        """},
+        { "role": "user", "content": input}  # "请在此处输入你的问题!!!"
+    ]    
+    return messages
     
-    return content
+
+def extract_content(dic):
+    if 'choices' in dic:        
+        for current in dic['choices']:    
+            if 'message' in current:
+                if 'content' in current['message']:
+                    return current['message']['content']
+    else:
+        return None
+
+
+def test_extract_content():
+    """ 测试是否能正确提取内容 """
+    dic = {'code': 0, 'message': 'Success', 'sid': 'cha000b231a@dx192cced4bdfb8f2532', 'choices': [{'message': {'role': 'assistant', 'content': 'date'}, 'index': 0}], 'usage': {'prompt_tokens': 62, 'completion_tokens': 1, 'total_tokens': 63}}
+
+    content = extract_content(dic)
+    assert content == 'date'
+
+
+def test_chat_mode():
+    test_items = [
+        ('输出当前时间', ('date')),
+        ('查看当前进程', ('ps aux')),
+    ]
+    
+    for t in test_items:
+        prompt, expected = t
+        content = chat_mode(prompt)    
+        e = "chat mode ERROR, ({}) ({}) ({})".format(prompt, content, expected)
+        assert content == expected, e
+
+
+def test():
+    """
+    用于测试的主函数
+    """
+    test_extract_content()
+    test_chat_mode()
+    
+
+if __name__ == '__main__':
+    test()
+    

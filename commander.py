@@ -1,16 +1,26 @@
 import os
-from utils import log, dotenv_file_path, load, save
+from utils import dotenv_file_path, load, save, chat_mode
 
 
 class Commander(object):
     
-    def __init__(self) -> None:
-        self.api_password = ''
+    def __init__(self, password=None) -> None:
+        self.password = password
     
-    def generate_command(self, content: str) -> str:
-        pass
+    def generate_command(self, input: str) -> str:
+        
+        if self.is_empty():
+                raise Exception('请先设置 env.txt 文件的 password')
+        
+        # 设置一个新的环境变量
+        os.environ['password'] = self.password
+        
+        return chat_mode(input)
     
     
+    def is_empty(self) -> bool:
+        return self.password is None or len(self.password) == 0
+        
 
 class SecretStore(object):
     
@@ -48,12 +58,17 @@ class SecretStore(object):
 
 
 def test_secret_store():
-    
-    pass
-        
-if __name__ == '__main__':
     double_s = SecretStore.new()
     
-    double_s.set('123456')
-    assert double_s.get() == '123456'
+    password = os.urandom(23).__str__()
+    double_s.set(password)
     
+    assert double_s.get() == password
+    
+    
+def test():
+    test_secret_store()
+    
+
+if __name__ == '__main__':
+    test()

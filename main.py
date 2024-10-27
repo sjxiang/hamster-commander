@@ -1,20 +1,22 @@
 import sys
 from utils import chat_mode
-
-
-def generate_command(input: str) -> str:
-    if input is not None and len(input.strip()) > 0:
-        return chat_mode(input)
+from commander import Commander, SecretStore
 
 
 def main(args=sys.argv[1:]):
 
     if (len(args) == 0):
-        raise Exception("参数为空, 请告诉我你想做什么")
+        raise Exception("请告诉我你想做什么")
     
-    content = args[0]    
-    cmd = generate_command(content)
-    print(cmd)
+    input = args[0]    
+    
+    # 获取密钥
+    ss = SecretStore.new()
+    password = ss.get()
+    
+    # 生成命令
+    cc = Commander(password)
+    print(cc.generate_command(input))
     
     
 if __name__ == '__main__':
