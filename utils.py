@@ -9,11 +9,6 @@ def log(*args, **kwargs):
     formatted_date = now.strftime('%Y/%m/%d %H:%M:%S')
     print('<log>', formatted_date, *args, **kwargs)
 
-        
-def dotenv_file_path():
-    current_dir = os.path.dirname(__file__)  # 获取当前脚本所在目录的路径
-    return '{}/env.txt'.format(current_dir)
-        
 
 def load(path):
     """
@@ -42,54 +37,57 @@ def save(data, path):
         f.write(s)
 
 
-def chat_mode(input: str) -> str:
-    """ 对话模式 """
-    
+def generate_process(query: str) -> str:
+    """ 
+    生成流程：调用星火认知大模型 Web API，根据查询生成最终回复
+    :param query: 用户输入的查询
+    :return: 返回生成的响应内容
+    """
+
+    # 设置
     url = "https://spark-api-open.xf-yun.com/v1/chat/completions"
+    model = 'generalv3.5'
+    api_key = os.getenv('password')
 
-    msgs = init_messages(input=input)
+    # 构建生成模型所需的 prompt, 包含用户查询和检索的上下文
+    prompt = f"""{query}, 记住你是一个将用户的需求转化为 linux 命令的机器人，你将用户发来的需求转化为 linux 命令行下的命令，你只回复命令本身，不回复任何其它内容。
+    示例1：
+    用户：打印日期
+    系统：date"""
     
-    json_obj = {
-        "max_tokens": 4096,
-        "top_k": 4,
-        "temperature": 0.5,
-        "messages": msgs,
-        "model": "generalv3.5"
-    }
+    # 准备请求消息, 将 prompt 作为输入
+    messages = [{ "role": "user", "content": prompt}]
     
-    payload = json.dumps(json_obj)       
-    headers = {
-        "Authorization": "Bearer {}".format(os.getenv('password')) # 注意此处替换自己的APIPassword
-    }    
-    
-    response = requests.request('POST', url, headers=headers, data=payload)
-    data = json.loads(response.text)
+    # 调用星火认知大模型 API, 生成响应
+    try:
+        payload = dict(
+            max_tokens=4096,
+            top_k=4,
+            temperature=0.5,
+            messages=messages,
+            model=model
+        )   
+        headers = {
+            "Authorization": "Bearer {}".format(api_key) 
+        }   
+        
+        response = requests.request('POST', url, headers=headers, data=json.dumps(payload))
+        
+        if response.status_code == 200:
+            print('\n生成过程完成.')
+            return extract_content(response.json())
+        else:
+            print(f"请求失败：{response.status_code} - {response.text}")
+            return None
+        
+    except Exception as e:
+        print(f"大模型生成过程中发生错误：{e}")
+        return None   
 
-    return extract_content(data)  
-
-
-def init_messages(input: str):
-    messages = [
-        { "role": "system", "content": f"""
-        你是一个将用户的需求转化为 linux 命令的机器人，你将用户发来的需求转化为 linux 命令行下的命令，你只回复命令本身，不回复任何其它内容。
-        示例1：
-        用户：打印日期
-        系统：date
-        """},
-        { "role": "user", "content": input}  # "请在此处输入你的问题!!!"
-    ]    
-    return messages
-    
 
 def extract_content(dic):
-    if 'choices' in dic:        
-        for current in dic['choices']:    
-            if 'message' in current:
-                if 'content' in current['message']:
-                    return current['message']['content']
-    else:
-        return None
-
+    return dic['choices'][0]['message']['content']
+    
 
 def test_extract_content():
     """ 测试是否能正确提取内容 """
@@ -99,16 +97,16 @@ def test_extract_content():
     assert content == 'date'
 
 
-def test_chat_mode():
+def test_generate_process():
     test_items = [
         ('输出当前时间', ('date')),
         ('查看当前进程', ('ps aux')),
     ]
     
     for t in test_items:
-        prompt, expected = t
-        content = chat_mode(prompt)    
-        e = "chat mode ERROR, ({}) ({}) ({})".format(prompt, content, expected)
+        query, expected = t
+        content = generate_process(query)    
+        e = "generate process ERROR, ({}) ({}) ({})".format(query, content, expected)
         assert content == expected, e
 
 
@@ -117,9 +115,9 @@ def test():
     用于测试的主函数
     """
     test_extract_content()
-    test_chat_mode()
     
 
 if __name__ == '__main__':
     test()
+    
     

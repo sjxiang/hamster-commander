@@ -1,6 +1,5 @@
 import sys
-from utils import chat_mode
-from commander import Commander, SecretStore
+from commander import Commander
 
 
 def main(args=sys.argv[1:]):
@@ -10,13 +9,9 @@ def main(args=sys.argv[1:]):
     
     input = args[0]    
     
-    # 获取密钥
-    ss = SecretStore.new()
-    password = ss.get()
-    
     # 生成命令
-    cc = Commander(password)
-    print(cc.generate_command(input))
+    cc = Commander.new()
+    print(cc.run(input))
     
     
 if __name__ == '__main__':
